@@ -34,8 +34,9 @@ class MTRAGDataLoader:
         )
         
         documents = loader.load()
-        documents.metadata["domain"] = domain
-            
+        # Add domain metadata to each document for filtering during search
+        for doc in documents:
+            doc.metadata["domain"] = domain
         print(f"Loaded {len(documents)} documents from {domain}")
         return documents
     
@@ -49,21 +50,14 @@ class MTRAGDataLoader:
             use_chunking: Whether to split long documents into chunks
         """
         all_documents = []
-        
-        # Load all documents using JSONLoader
-        print("Loading JSONL files with LangChain JSONLoader...")
         for domain in file_domain:
             filepath = os.path.join(DATA_ROOT, DATA_RAW_ROOT, f"{domain}.jsonl")
-            print(f"\nProcessing {filepath} (domain: {domain})...")
             try:
                 docs = self.load_jsonl_with_loader(filepath, domain)
                 all_documents.extend(docs)
             except Exception as e:
                 print(f"Error loading {filepath}: {e}")
                 continue
-        print(f"\n{'='*50}")
-        print(f"Total documents loaded: {len(all_documents)}")
-        print(f"{'='*50}")
 
         if use_chunking:
             split_docs = self.text_splitter.split_documents(all_documents)
