@@ -1,0 +1,7 @@
+torch==2.8.0
+langchain 
+langchain-community
+langchain-huggingface
+langchain-core
+sentence_transformers
+langchain-chroma>=0.1.2
