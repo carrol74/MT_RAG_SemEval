@@ -22,7 +22,7 @@ class MTHybridRetriever:
     def build_bm25_retriever(self, documents):
         self.bm25_retriever = BM25Retriever.from_documents(documents)
 
-    def hybrid_retrieve(self, query, alpha=0.3, k=2, domain=None):
+    def hybrid_retrieve(self, query, alpha=0.3, k=2):
         """
         Build hybrid retriever combining vector store and BM25 retriever
         
@@ -31,7 +31,7 @@ class MTHybridRetriever:
         """
         if self.vector_store is None or self.bm25_retriever is None:
             raise ValueError("Both vector store and BM25 retriever must be initialized")
-        vector_result = self.vector_store.similarity_search(query, k=k, filter={"domain": domain} if domain else None)
+        vector_result = self.vector_store.similarity_search(query, k=k)
         self.bm25_retriever.k = k
         bm25_result = self.bm25_retriever.invoke(query)
         combined_result = []

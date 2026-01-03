@@ -6,3 +6,4 @@ langchain-core
 sentence_transformers
 langchain-chroma>=0.1.2
 rank_bm25
+beir

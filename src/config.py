@@ -8,5 +8,4 @@ DOMAINS = ["clapnq", "cloud", "fiqa", "govt"]
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 EMBEDDING_MODEL_NAME = 'sentence-transformers/all-MiniLM-L6-v2'
-COLLECTION_NAME = "multi_domain_corpus"
-MD_VECTOR_STORE_NAME = "md_vector_store"
+LLM_MODEL_NAME = "meta-llama/Llama-3.2-1B-Instruct"

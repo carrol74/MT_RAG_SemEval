@@ -3,10 +3,11 @@ from config import *
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
-class MultiDomainVectorStore:
-    def __init__(self, 
-                 model_name: str = 'sentence-transformers/all-MiniLM-L6-v2',
-                 persist_name = MD_VECTOR_STORE_NAME):
+class MTVectorStore:
+    def __init__(self,
+                 persist_name,
+                 model_name: str = 'sentence-transformers/all-MiniLM-L6-v2'
+                 ):
         """
         Initialize vector store for multiple domains
         
@@ -20,7 +21,7 @@ class MultiDomainVectorStore:
     
     def build_from_documents(self, 
                              documents,
-                             collection_name = COLLECTION_NAME):
+                             collection_name):
         """
         Build vector store from multiple JSONL files using JSONLoader
         
@@ -38,7 +39,7 @@ class MultiDomainVectorStore:
         print("Vector store built and persisted")
         return self.vectorstore
     
-    def load_existing(self, collection_name = COLLECTION_NAME):
+    def load_existing(self, collection_name):
         """Load an existing vector store"""
         self.vectorstore = Chroma(
             persist_directory=self.persist_directory,

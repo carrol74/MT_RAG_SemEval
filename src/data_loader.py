@@ -18,13 +18,10 @@ class MTRAGDataLoader:
             add_start_index=True
         )
     
-    def load_jsonl_with_loader(self, filepath, domain):
+    def load_jsonl_with_loader(self, filepath):
         """
         Load JSONL file using LangChain's JSONLoader
-        
-        Args:
-            filepath: Path to JSONL file
-            domain: Domain label for this corpus
+
         """
         loader = JSONLoader(
             file_path=filepath,
@@ -34,33 +31,26 @@ class MTRAGDataLoader:
         )
         
         documents = loader.load()
-        # Add domain metadata to each document for filtering during search
-        for doc in documents:
-            doc.metadata["domain"] = domain
-        print(f"Loaded {len(documents)} documents from {domain}")
+        print(f"Loaded {len(documents)}")
         return documents
     
     def documents_from_files(self, 
-                             file_domain,
+                             name,
                              use_chunking = True):
         """
         Load documents from multiple JSONL files using JSONLoader
         Args:
-            file_domain: List of domains corresponding to files
+            name: Base name of the JSONL file (without .jsonl)
             use_chunking: Whether to split long documents into chunks
         """
-        all_documents = []
-        for domain in file_domain:
-            filepath = os.path.join(DATA_ROOT, DATA_RAW_ROOT, f"{domain}.jsonl")
-            try:
-                docs = self.load_jsonl_with_loader(filepath, domain)
-                all_documents.extend(docs)
-            except Exception as e:
-                print(f"Error loading {filepath}: {e}")
-                continue
+        filepath = os.path.join(DATA_ROOT, DATA_RAW_ROOT, f"{name}.jsonl")
+        try:
+            docs = self.load_jsonl_with_loader(filepath, name)
+        except Exception as e:
+            print(f"Error loading {filepath}: {e}")
 
         if use_chunking:
-            split_docs = self.text_splitter.split_documents(all_documents)
-            print(f"Created {len(split_docs)} chunks from {len(all_documents)} documents")
-            all_documents = split_docs
-        return all_documents
+            split_docs = self.text_splitter.split_documents(docs)
+            print(f"Created {len(split_docs)} chunks from {len(docs)} documents")
+            docs = split_docs
+        return docs
