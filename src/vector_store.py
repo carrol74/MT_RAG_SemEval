@@ -1,5 +1,5 @@
 import os
-from config import *
+from src.config import *
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 

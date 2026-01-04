@@ -1,10 +1,9 @@
 import logging
-import os
-import json
-import pathlib
-import sys
 
-from config import *
+from src.config import *
+from src.retriever import MTHybridRetriever
+from src.query_rewriter import MTQueryRewriter
+
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -13,11 +12,6 @@ from beir import util, LoggingHandler
 from beir.datasets.data_loader import GenericDataLoader
 from beir.retrieval.evaluation import EvaluateRetrieval
 from beir.reranking import Rerank
-
-
-from retriever import MTHybridRetriever
-from query_rewriter import process_query  # Your Query Rewriter Wrapper
-# from s import MTRAGReranker         # Your Cross-Encoder Wrapper
 
 # --- Logging Setup ---
 logging.basicConfig(
@@ -32,7 +26,7 @@ class MTRetrieveModel:
     A Wrapper class that makes your custom pipeline look like a BEIR model.
     It implements the 'search' function required by EvaluateRetrieval.
     """
-    def __init__(self, history_map, domain):
+    def __init__(self, domain):
         self.retriever = MTHybridRetriever(domain=domain)
         self.domain = domain
 
@@ -47,6 +41,9 @@ class MTRetrieveModel:
         """
         documents = documents_from_corpus(corpus)
         self.retriever.index_documents(documents)
+
+        query_ids = list(queries.keys())
+        queries = [queries[qid] for qid in query_ids]
 
         logging.info(f"Starting Retrieval for {len(queries)} queries in domain: {self.domain}...")
         results = {}
@@ -71,7 +68,7 @@ def documents_from_corpus(corpus, chunking=False):
             Document(
                 page_content=doc["text"],
                 metadata={
-                    "corpus_id": corpus_id,
+                    CORPUS_KEY: corpus_id,
                     "title": doc.get("title", "")
                 }
             )
@@ -79,3 +76,15 @@ def documents_from_corpus(corpus, chunking=False):
     if chunking:
         documents = text_splitter.split_documents(documents)
     return documents
+
+def parse_questions(raw_text):
+    lines = raw_text.split('\n')
+    turns = [line.replace("|user|: ", "").strip() for line in lines if line.strip()]
+    
+    if not turns:
+        return None
+    # Everything before the last line is History
+    history_turns = turns[:-1] 
+    # The very last line is the Question we want to rewrite
+    last_question = turns[-1]
+    return history_turns, last_question
