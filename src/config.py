@@ -4,6 +4,9 @@ DATA_RAW_ROOT = "raw"
 DATA_VECTOR_ROOT = "processed"
 DOMAINS = ["clapnq", "cloud", "fiqa", "govt"]
 
+#data key
+CORPUS_KEY = "id"
+
 # model config
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200

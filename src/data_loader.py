@@ -1,4 +1,4 @@
-from config import *
+from src.config import *
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -53,30 +53,3 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
     #         print(f"Created {len(split_docs)} chunks from {len(docs)} documents")
     #         docs = split_docs
     #     return docs
-
-def documents_from_corpus(corpus, chunking=False):
-    """
-    Convert BEIR corpus dict to list of Document objects
-    Args:
-        corpus: BEIR corpus dictionary
-    """
-    # TODO: seems like it would chunk by \n
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=CHUNK_SIZE,
-        chunk_overlap=CHUNK_OVERLAP,
-        add_start_index=True
-    )
-    documents = []
-    for corpus_id, doc in corpus.items():
-        documents.append(
-            Document(
-                page_content=doc["text"],
-                metadata={
-                    "corpus_id": corpus_id,
-                    "title": doc.get("title", "")
-                }
-            )
-        )
-    if chunking:
-        documents = text_splitter.split_documents(documents)
-    return documents
