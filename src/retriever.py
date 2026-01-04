@@ -4,7 +4,7 @@ from vector_store import MultiDomainVectorStore
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import EnsembleRetriever
 class MTHybridRetriever:
-    def __init__(self):
+    def __init__(self, domain, alpha=0.5):
         """
         Initialize retriever for multiple domains
         
@@ -15,14 +15,25 @@ class MTHybridRetriever:
         """
         self.vector_store = None
         self.bm25_retriever = None
+        self.domain = domain
+        self.alpha = alpha
 
-    def build_vector_retriever(self, documents):
-        self.vector_store = MultiDomainVectorStore.build_from_documents(documents) 
+    #TODO: not explicitly pass documents, we should initialize them inside the model
+
+    def index_documents(self, documents, isUpdate=False):
+        self.build_vector_retriever(documents, isUpdate=isUpdate)
+        self.build_bm25_retriever(documents)
+
+    def build_vector_retriever(self, documents, isUpdate=False):
+        if not isUpdate and os.path.exists(os.path.join(DATA_ROOT, DATA_VECTOR_ROOT, f"{self.domain}")):
+            self.vector_store = MultiDomainVectorStore.load_existing(collection_name=self.domain)
+        else:
+            self.vector_store = MultiDomainVectorStore.build_from_documents(documents)
 
     def build_bm25_retriever(self, documents):
         self.bm25_retriever = BM25Retriever.from_documents(documents)
 
-    def hybrid_retrieve(self, query, alpha=0.3, k=2):
+    def search(self, query, k=2):
         """
         Build hybrid retriever combining vector store and BM25 retriever
         
