@@ -7,19 +7,6 @@ from src.query_rewriter import MTQueryRewriter
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# --- BEIR Imports ---
-from beir import util, LoggingHandler
-from beir.datasets.data_loader import GenericDataLoader
-from beir.retrieval.evaluation import EvaluateRetrieval
-from beir.reranking import Rerank
-
-# --- Logging Setup ---
-logging.basicConfig(
-    format="%(asctime)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-    handlers=[LoggingHandler()],
-)
 
 class MTRetrieveModel:
     """
@@ -30,7 +17,7 @@ class MTRetrieveModel:
         self.retriever = MTHybridRetriever(domain=domain)
         self.domain = domain
 
-    def search(self, corpus, queries, top_k, **kwargs):
+    def search(self, corpus, queries, top_k, score_function, **kwargs):
         """
         Input: 
             corpus: dict {doc_id: {text, title}}
@@ -47,7 +34,15 @@ class MTRetrieveModel:
 
         logging.info(f"Starting Retrieval for {len(queries)} queries in domain: {self.domain}...")
         results = {}
-        #TODO: Iterate over queries and retrieve top_k documents
+        rewriter = MTQueryRewriter()
+        for i, query in enumerate(queries):
+            history, last_question = parse_questions(query)
+            rewritten_query = rewriter.rewrite_query(last_question, history)
+            retrieved_docs = self.retriever.search(rewritten_query, k=top_k)
+            results[query_ids[i]] = retrieved_docs
+            if (i + 1) % 100 == 0:
+                logging.info(f"Retrieved {i + 1}/{len(queries)} queries.")
+        logging.info("Retrieval completed.")
         return results
     
 def documents_from_corpus(corpus, chunking=False):

@@ -46,7 +46,7 @@ class MTQueryRewriter:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
-        print("Prompt to LLM:", prompt)
+        # print("Prompt to LLM:", prompt)
         generation = self.model(
             prompt,
             do_sample=False,

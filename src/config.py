@@ -12,6 +12,3 @@ CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 EMBEDDING_MODEL_NAME = 'sentence-transformers/all-MiniLM-L6-v2'
 LLM_MODEL_NAME = "meta-llama/Llama-3.2-1B-Instruct"
-
-# evaluation config
-K_VALUES = [1, 3, 5, 10]  # Metrics to calculate
