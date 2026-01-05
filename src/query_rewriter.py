@@ -24,6 +24,7 @@ class MTQueryRewriter:
         system_prompt = """
         You are a Query Resolution Engine.
         Your goal is to analyze the user's last question given the conversation history.
+        The question would be used to retrieve relevant documents from a knowledge base.
 
         1. REWRITE the question to be standalone (resolve pronouns like "it", "he", "that").
         2. OUTPUT only the rewritten question without any additional text.
@@ -40,7 +41,6 @@ class MTQueryRewriter:
         user_prompt = f"""
         History: {history}
         Last Question: {query}
-        Provide the rewritten question below:
         """
         prompt = [
             {"role": "system", "content": system_prompt},

@@ -1,5 +1,5 @@
 # data path
-DATA_ROOT = "data/raw"
+DATA_ROOT = "data"
 DATA_RAW_ROOT = "raw"
 DATA_VECTOR_ROOT = "processed"
 DOMAINS = ["clapnq", "cloud", "fiqa", "govt"]

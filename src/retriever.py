@@ -11,7 +11,7 @@ class MTHybridRetriever:
             domain: Domain name
             alpha: Weighting factor for hybrid retrieval
         """
-        self.vector_store = None
+        self.mtstore = None
         self.bm25_retriever = None
         self.domain = domain
         self.alpha = alpha
@@ -21,11 +21,11 @@ class MTHybridRetriever:
         self.build_bm25_retriever(documents)
 
     def build_vector_retriever(self, documents, isUpdate=False):
+        self.mtstore = MTVectorStore(persist_name=self.domain)
         if not isUpdate and os.path.exists(os.path.join(DATA_ROOT, DATA_VECTOR_ROOT, f"{self.domain}")):
-            self.vector_store = MTVectorStore.load_existing(collection_name=self.domain)
+            self.mtstore.load_existing(collection_name=self.domain)
         else:
-            self.vector_store = MTVectorStore.build_from_documents(documents)
-
+            self.mtstore.build_from_documents(documents, collection_name=self.domain)
     def build_bm25_retriever(self, documents):
         self.bm25_retriever = BM25Retriever.from_documents(documents)
 
@@ -34,13 +34,13 @@ class MTHybridRetriever:
         Build hybrid retriever combining vector store and BM25 retriever
 
         """
-        if self.vector_store is None or self.bm25_retriever is None:
+        if self.mtstore is None or self.bm25_retriever is None:
             raise ValueError("Both vector store and BM25 retriever must be initialized")
-        dense_results = self.vector_store.similarity_search(query, k=k)
+        dense_results = self.mtstore.vector_store.similarity_search(query, k=k)
         self.bm25_retriever.k = k
         bm25_results = self.bm25_retriever.invoke(query)
         fused_hits = self.reciprocal_rank_fusion(dense_results, bm25_results)
-        return fused_hits[:k]
+        return dict(fused_hits[:k])
 
     def reciprocal_rank_fusion(self, dense_res, sparse_res, k_param: int = 60):
         """
@@ -54,6 +54,8 @@ class MTHybridRetriever:
         for rank, doc in enumerate(dense_res):
             doc_id = doc.metadata.get(CORPUS_KEY)
             if not doc_id: continue
+            if doc_id not in scores:
+                scores[doc_id] = 0.0
             
             # Double Weight for Dense Results
             # Score = 2 / (60 + rank)
@@ -65,12 +67,10 @@ class MTHybridRetriever:
         for rank, doc in enumerate(sparse_res):
             doc_id = doc.metadata.get(CORPUS_KEY)
             if not doc_id: continue
-            
-            # Add to existing score. If doc was in Dense list, it gets a boost!
+            if doc_id not in scores:
+                scores[doc_id] = 0.0
+            # Add to existing score.
             scores[doc_id] += 1.0 / (k_param + rank)
 
         # 3. Sort by Final Score (Highest first)
-        sorted(scores.items(), key=lambda item: item[1], reverse=True)
-        
-        # 4. Return the sorted documents with scores
-        return scores.items()
+        return sorted(scores.items(), key=lambda item: item[1], reverse=True)

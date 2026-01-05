@@ -1,6 +1,6 @@
 import os
 from src.config import *
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
 class MTVectorStore:
@@ -17,7 +17,7 @@ class MTVectorStore:
         """
         self.embeddings = HuggingFaceEmbeddings(model_name=model_name)
         self.persist_directory = os.path.join(DATA_ROOT, DATA_VECTOR_ROOT, persist_name)
-        self.vectorstore = None
+        self.vector_store = None
     
     def build_from_documents(self, 
                              documents,
@@ -29,22 +29,20 @@ class MTVectorStore:
             documents: List of Document objects
             collection_name: Name for the collection
         """
-        self.vectorstore = Chroma.from_documents(
+        self.vector_store = Chroma.from_documents(
             documents=documents,
             embedding=self.embeddings,
             persist_directory=self.persist_directory,
             collection_name=collection_name
         )
-        self.vectorstore.persist()
+        self.vector_store.persist()
         print("Vector store built and persisted")
-        return self.vectorstore
     
     def load_existing(self, collection_name):
         """Load an existing vector store"""
-        self.vectorstore = Chroma(
+        self.vector_store = Chroma(
             persist_directory=self.persist_directory,
             embedding_function=self.embeddings,
             collection_name=collection_name
         )
         print("Loaded existing vector store")
-        return self.vectorstore
