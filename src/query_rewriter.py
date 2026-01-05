@@ -21,22 +21,50 @@ class MTQueryRewriter:
             history: List of previous conversation turns
         """
         #TODO: Construct prompt using query and history to guide the LLM for rewriting
+        # system_prompt = """
+        # You are a Query Resolution Engine.
+        # Your goal is to analyze the user's last question given the conversation history.
+        # The question would be used to retrieve relevant documents from a knowledge base.
+
+        # 1. REWRITE the question to be standalone (resolve pronouns like "it", "he", "that").
+        # 2. OUTPUT only the rewritten question without any additional text.
+
+        # Example Input:
+        # History:
+        # "where does doctor strange get his powers from"
+        # Last Question:
+        # "How many films does he appear in"
+
+        # Example Output:
+        # "How many films does Doctor Strange appear in?"
+        # """
         system_prompt = """
-        You are a Query Resolution Engine.
-        Your goal is to analyze the user's last question given the conversation history.
-        The question would be used to retrieve relevant documents from a knowledge base.
+        You are a Query Rewriting Module for Information Retrieval.
 
-        1. REWRITE the question to be standalone (resolve pronouns like "it", "he", "that").
-        2. OUTPUT only the rewritten question without any additional text.
+        Your task is to rewrite the user's last question into a concise, standalone query
+        that maximizes document retrieval quality.
 
-        Example Input:
+        Guidelines:
+        1. Resolve all references using the conversation history (pronouns, ellipsis).
+        2. Preserve and explicitly name all important entities (people, places, events).
+        3. Remove conversational or polite language.
+        4. Do NOT answer the question.
+        5. Do NOT add new information.
+        6. Prefer keyword-rich phrasing suitable for search engines.
+        7. Keep the query concise (one sentence or phrase).
+
+        Output:
+        - ONLY the rewritten query text.
+        - No explanations, no punctuation outside the query.
+                
+        Example:
         History:
         "where does doctor strange get his powers from"
         Last Question:
         "How many films does he appear in"
 
-        Example Output:
-        "How many films does Doctor Strange appear in?"
+        Output:
+        "Doctor Strange number of film appearances"
         """
         user_prompt = f"""
         History: {history}

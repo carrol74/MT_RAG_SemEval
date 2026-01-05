@@ -18,10 +18,10 @@ class MTVectorStore:
         self.embeddings = HuggingFaceEmbeddings(model_name=model_name)
         self.persist_directory = os.path.join(DATA_ROOT, DATA_VECTOR_ROOT, persist_name)
         self.vector_store = None
+        self.collection_name = persist_name
     
     def build_from_documents(self, 
-                             documents,
-                             collection_name):
+                             documents):
         """
         Build vector store from multiple JSONL files using JSONLoader
         
@@ -33,16 +33,16 @@ class MTVectorStore:
             documents=documents,
             embedding=self.embeddings,
             persist_directory=self.persist_directory,
-            collection_name=collection_name
+            collection_name=self.collection_name
         )
-        self.vector_store.persist()
+        # self.vector_store.persist()
         print("Vector store built and persisted")
     
-    def load_existing(self, collection_name):
+    def load_existing(self):
         """Load an existing vector store"""
         self.vector_store = Chroma(
             persist_directory=self.persist_directory,
             embedding_function=self.embeddings,
-            collection_name=collection_name
+            collection_name=self.collection_name
         )
         print("Loaded existing vector store")

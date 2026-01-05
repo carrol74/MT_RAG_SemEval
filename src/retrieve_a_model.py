@@ -16,7 +16,6 @@ class MTRetrieveModel:
     def __init__(self, domain):
         self.retriever = MTHybridRetriever(domain=domain)
         self.domain = domain
-
     def search(self, corpus, queries, top_k, score_function, **kwargs):
         """
         Input: 
@@ -27,7 +26,7 @@ class MTRetrieveModel:
             results: dict {qid: {doc_id: score}}
         """
         documents = documents_from_corpus(corpus)
-        self.retriever.index_documents(documents)
+        self.retriever.index_documents(documents, isUpdate=True)
 
         query_ids = list(queries.keys())
         queries = [queries[qid] for qid in query_ids]
@@ -36,12 +35,13 @@ class MTRetrieveModel:
         results = {}
         rewriter = MTQueryRewriter()
         for i, query in enumerate(queries):
+            #TODO test without rewriting
             history, last_question = parse_questions(query)
             rewritten_query = rewriter.rewrite_query(last_question, history)
+
             retrieved_docs = self.retriever.search(rewritten_query, k=top_k)
+            # retrieved_docs = self.retriever.search(query, k=top_k)
             results[query_ids[i]] = retrieved_docs
-            if (i + 1) % 100 == 0:
-                logging.info(f"Retrieved {i + 1}/{len(queries)} queries.")
         logging.info("Retrieval completed.")
         return results
     
