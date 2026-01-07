@@ -31,7 +31,7 @@ class MTHybridRetriever:
     def build_bm25_retriever(self, documents):
         self.bm25_retriever = BM25Retriever.from_documents(documents)
 
-    def search(self, query, k=2):
+    def search(self, query, k=2, return_content=False):
         """
         Build hybrid retriever combining vector store and BM25 retriever
 
@@ -51,6 +51,14 @@ class MTHybridRetriever:
         reranked_with_scores = list(zip([doc_id for doc_id, _ in reranked_hits], cross_scores))
         reranked_with_scores.sort(key=lambda x: x[1], reverse=True)
         final_hits = reranked_with_scores[:k]
+        if return_content:
+            return {
+                doc_id: {
+                    "text": doc_contents[doc_id],
+                    "score": float(score)
+                } 
+                for doc_id, score in final_hits
+            }
         clean_results = {
             doc_id: float(score) 
             for doc_id, score in final_hits
