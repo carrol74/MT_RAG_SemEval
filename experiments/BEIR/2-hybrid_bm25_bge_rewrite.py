@@ -8,14 +8,26 @@ from src.mtrag.beir_io import load_beir_queries, load_beir_qrels_tsv
 from src.mtrag.utils import get_device
 
 
-# ====== e.g. clapnq ======
+# ====== domain: "clapnq" | "cloud" | "fiqa" | "govt" ======
 DOMAIN = "clapnq"
 
+# query variant: "lastturn" | "rewrite" | "rewrite_new"
+QUERY_VARIANT = "rewrite_new"
+
+# paths (BEIR format)
 CORPUS_JSONL = Path(f"corpora/passage_level/{DOMAIN}.jsonl")
-QUERIES_JSONL = Path(f"human/retrieval_tasks/{DOMAIN}/{DOMAIN}_lastturn.jsonl")
 QRELS_TSV = Path(f"human/retrieval_tasks/{DOMAIN}/qrels/dev.tsv")
 
-print(f"[INFO] Running BEIR hybrid BM25+BGE on domain: {DOMAIN}")
+if QUERY_VARIANT == "lastturn":
+    QUERIES_JSONL = Path(f"human/retrieval_tasks/{DOMAIN}/{DOMAIN}_lastturn.jsonl")
+elif QUERY_VARIANT == "rewrite":
+    QUERIES_JSONL = Path(f"human/retrieval_tasks/{DOMAIN}/{DOMAIN}_rewrite.jsonl")
+elif QUERY_VARIANT == "rewrite_new":
+    QUERIES_JSONL = Path(f"corpora/rewrite_query/{DOMAIN}/{DOMAIN}_rewrite_new.jsonl")
+else:
+    raise ValueError(f"Unknown QUERY_VARIANT: {QUERY_VARIANT}")
+
+print(f"[INFO] Running BEIR hybrid BM25+BGE on domain: {DOMAIN} (queries={QUERY_VARIANT})")
 
 # dense model
 BGE_MODEL = "BAAI/bge-base-en-v1.5"
@@ -29,6 +41,7 @@ RRF_K0 = 60
 DEVICE = get_device()
 print(f"[INFO] Using device: {DEVICE}")
 
+
 def main():
     # 1) load corpus / queries / qrels (BEIR format)
     corpus = load_corpus_jsonl(CORPUS_JSONL)
@@ -39,7 +52,7 @@ def main():
     bm25 = BM25Retriever(corpus, tokenizer=tokenize_regex)
 
     dense = DenseRetriever(model_name=BGE_MODEL, device=DEVICE)
-    dense_index = dense.build_or_load(collection=f"{DOMAIN}_passage_level", corpus=corpus)  # collection used for cache paths
+    dense_index = dense.build_or_load(collection=f"{DOMAIN}_passage_level", corpus=corpus)  # cache key
 
     # 3) run retrieval + fusion -> build "run" dict for BEIR evaluator
     # run: {qid: {docid: score}}
@@ -54,11 +67,10 @@ def main():
         run[qid] = {c["document_id"]: float(c["score"]) for c in fused}
 
     # 4) evaluate with BEIR (Recall/nDCG at k)
-    evaluator = EvaluateRetrieval()  # default uses pytrec_eval internally
+    evaluator = EvaluateRetrieval()
     k_values = [1, 3, 5, 10]
     ndcg, _map, recall, precision = evaluator.evaluate(qrels, run, k_values)
 
-    # print key numbers similar to README table
     print("\n==== BEIR Eval (Hybrid BM25+BGE, RRF) ====")
     for k in k_values:
         print(f"R@{k}: {recall[f'Recall@{k}']:.4f}   nDCG@{k}: {ndcg[f'NDCG@{k}']:.4f}")
