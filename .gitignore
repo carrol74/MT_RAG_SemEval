@@ -1,4 +1,6 @@
 .DS_Store
+/data
+.out
 #test file
 test.ipynb
 # Byte-compiled / optimized / DLL files

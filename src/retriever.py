@@ -2,6 +2,7 @@ import os
 from src.config import *
 from src.vector_store import MTVectorStore
 from langchain_community.retrievers import BM25Retriever
+from sentence_transformers import CrossEncoder
 class MTHybridRetriever:
     def __init__(self, domain, alpha=0.8):
         """
@@ -15,6 +16,7 @@ class MTHybridRetriever:
         self.bm25_retriever = None
         self.domain = domain
         self.alpha = alpha
+        self.cross_encoder = CrossEncoder(CROSS_ENCODER_MODEL_NAME)
 
     def index_documents(self, documents, isUpdate=False):
         self.build_vector_retriever(documents, isUpdate=isUpdate)
@@ -35,13 +37,25 @@ class MTHybridRetriever:
 
         """
         top_k = 3 * k
+        # rrf for top 3k
         if self.mtstore is None or self.bm25_retriever is None:
             raise ValueError("Both vector store and BM25 retriever must be initialized")
         dense_results = self.mtstore.vector_store.similarity_search(query, k=top_k)
         self.bm25_retriever.k = top_k
         bm25_results = self.bm25_retriever.invoke(query)
-        fused_hits = self.reciprocal_rank_fusion(dense_results, bm25_results)
-        return dict(fused_hits[:k])
+        fused_hits, doc_contents = self.reciprocal_rank_fusion(dense_results, bm25_results)
+        #rerank for top 2k
+        reranked_hits = fused_hits[:2 * k]
+        cross_inputs = [[query, doc_contents[doc_id]] for doc_id, _ in reranked_hits]
+        cross_scores = self.cross_encoder.predict(cross_inputs)
+        reranked_with_scores = list(zip([doc_id for doc_id, _ in reranked_hits], cross_scores))
+        reranked_with_scores.sort(key=lambda x: x[1], reverse=True)
+        final_hits = reranked_with_scores[:k]
+        clean_results = {
+            doc_id: float(score) 
+            for doc_id, score in final_hits
+        }
+        return clean_results
 
     def reciprocal_rank_fusion(self, dense_res, sparse_res, k_param: int = 60):
         """
@@ -50,6 +64,7 @@ class MTHybridRetriever:
         """
         # Dictionary to hold the final scores: {doc_id: score}
         scores = {}
+        doc_contents = {}
 
         # 1. Process Dense Results
         for rank, doc in enumerate(dense_res):
@@ -61,6 +76,7 @@ class MTHybridRetriever:
             # Rank 0 -> 0.8/60 = 0.0133
             # Rank 1 -> 0.8/61 = 0.0131
             scores[doc_id] = self.alpha / (k_param + rank)
+            doc_contents[doc_id] = doc.page_content
 
         # # 2. Process Sparse Results
         for rank, doc in enumerate(sparse_res):
@@ -70,6 +86,7 @@ class MTHybridRetriever:
                 scores[doc_id] = 0.0
             # Add to existing score.
             scores[doc_id] += (1 - self.alpha)/ (k_param + rank)
+            doc_contents[doc_id] = doc.page_content
 
         # 3. Sort by Final Score (Highest first)
-        return sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        return sorted(scores.items(), key=lambda item: item[1], reverse=True), doc_contents
