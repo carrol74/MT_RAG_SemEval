@@ -93,7 +93,7 @@ def main():
 
     q_questions, q_lastturn = build_maps(questions_items, lastturn_items)
 
-    cfg = RewriteConfig(model_name="Qwen/Qwen2.5-7B-Instruct", max_new_tokens=args.max_new_tokens)
+    cfg = RewriteConfig(model_name=args.model_name, max_new_tokens=args.max_new_tokens)
     rewriter = MTQueryRewriter(cfg)
 
     cache = {} if args.force else load_cache(cache_path)
