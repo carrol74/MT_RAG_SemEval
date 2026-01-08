@@ -34,8 +34,7 @@ class MTRetrieveModel:
         # TODO: parallelize this loop if needed
         for i, query in enumerate(queries):
             history, last_question = parse_questions(query)
-            rewritten_query = rewriter.rewrite_query(last_question, history)
-
+            rewritten_query = rewriter.rewrite_query(history, last_question)
             retrieved_docs = self.retriever.search(rewritten_query, k=top_k)
             # retrieved_docs = self.retriever.search(query, k=top_k)
             results[query_ids[i]] = retrieved_docs
