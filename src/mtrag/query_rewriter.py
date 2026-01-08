@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import torch
 from transformers import pipeline
@@ -28,37 +28,27 @@ def parse_questions_text_to_turns(questions_text: str) -> List[str]:
     lines = [ln.strip() for ln in questions_text.splitlines() if ln.strip()]
     return lines
 
-
-def extract_history_from_questions_text(questions_text: str, lastturn_text: str) -> List[str]:
+def split_questions_snapshot(questions_text: str) -> Tuple[List[str], str]:
     """
-    Build history turns (excluding the last user question).
-    We rely on the 'questions' file containing the whole conversation,
-    and 'lastturn' containing only the final user query.
+    adapt 'question_text' in retrieval_tasks/<domain>_questions.jsonl
 
-    Strategy:
-    - Parse turns from questions_text
-    - Remove the last turn if it matches lastturn_text (after normalization)
-    - Return remaining turns as history
+    Returns:
+      history_turns (preserve original prefixes), last_question (stripped prefix)
     """
     turns = parse_questions_text_to_turns(questions_text)
     if not turns:
-        return []
+        return [], ""
 
-    norm_last = strip_speaker_prefix(lastturn_text).lower()
-    # Try dropping the final line if it matches the lastturn
-    if turns:
-        last_line_norm = strip_speaker_prefix(turns[-1]).lower()
-        if norm_last and last_line_norm == norm_last:
-            turns = turns[:-1]
-
-    return turns
-
+    last = strip_speaker_prefix(turns[-1])
+    history = turns[:-1]
+    return history, last
 
 def _postprocess_rewrite(s: str) -> str:
     """
     Make output safe for retrieval (search query).
     - take first non-empty line
     - strip quotes / leading labels
+    - cut off any leaked prompt/instruction tail on the same line
     """
     if s is None:
         return ""
@@ -74,6 +64,19 @@ def _postprocess_rewrite(s: str) -> str:
             s = line
             break
 
+    # cut off leaked instructions if they appear after the actual query
+    cut_phrases = [
+        "To rewrite the user's last question",
+        "Rewrite the user's last question",
+        "Guidelines:",
+        "Output ONLY",
+    ]
+    for p in cut_phrases:
+        idx = s.find(p)
+        if idx > 0:
+            s = s[:idx].strip()
+            break
+        
     # strip wrapping quotes
     s = s.strip().strip('"').strip("'").strip()
 
@@ -90,6 +93,7 @@ class RewriteConfig:
     temperature: float = 1.0
     top_p: float = 1.0
     dtype: Optional[torch.dtype] = None
+    history_turns: int = 6
 
 
 class MTQueryRewriter:
@@ -103,7 +107,7 @@ class MTQueryRewriter:
     def __init__(self, cfg: RewriteConfig):
         dtype = cfg.dtype
         if dtype is None:
-            dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+            dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
         self.cfg = cfg
         self.pipe = pipeline(
@@ -127,6 +131,13 @@ class MTQueryRewriter:
             "Output ONLY the rewritten query text."
         )
 
+    def rewrite_from_questions_text(self, questions_text: str) -> str:
+        """
+        generate rewrite from retrieval_tasks/<domain>_questions.jsonl's text field.
+        """
+        history_turns, last_q = split_questions_snapshot(questions_text)
+        return self.rewrite_query(query=last_q, history=history_turns)
+    
     def rewrite_query(self, query: str, history: List[str]) -> str:
         """
         Args:
@@ -137,7 +148,8 @@ class MTQueryRewriter:
 
         # Keep speaker prefixes in history to help resolution; but trim length a bit
         hist_lines = [t.strip() for t in history if t and t.strip()]
-        hist_lines = hist_lines[-6:]
+        if self.cfg.history_turns > 0 and len(hist_lines) > self.cfg.history_turns:
+            hist_lines = hist_lines[-self.cfg.history_turns :]
         hist_block = "\n".join(hist_lines)
 
         user_prompt = (
@@ -146,28 +158,21 @@ class MTQueryRewriter:
             "Rewritten Query:"
         )
 
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
+        prompt_str = f"{self.system_prompt}\n\n{user_prompt}"
 
-        out = self.pipe(
-            messages,
-            do_sample=self.cfg.do_sample,
-            temperature=self.cfg.temperature,
-            top_p=self.cfg.top_p,
-            max_new_tokens=self.cfg.max_new_tokens,
-            return_full_text=False,
-        )
+        generate_kwargs = {
+            "do_sample": self.cfg.do_sample,
+            "max_new_tokens": self.cfg.max_new_tokens,
+            "return_full_text": False,
+        }
 
-        # Robustly parse common HF outputs
-        gen = out[0].get("generated_text")
+        if self.cfg.do_sample:
+            generate_kwargs["temperature"] = self.cfg.temperature
+            generate_kwargs["top_p"] = self.cfg.top_p
 
-        if isinstance(gen, str):
-            return _postprocess_rewrite(gen)
+        out = self.pipe(prompt_str, **generate_kwargs)
+        gen = out[0].get("generated_text", "")
 
-        # Some chat pipelines return list[dict(role, content)]
-        if isinstance(gen, list) and gen and isinstance(gen[-1], dict):
-            return _postprocess_rewrite(gen[-1].get("content", ""))
-
-        return _postprocess_rewrite(str(gen))
+        rewritten = _postprocess_rewrite(gen)
+        return rewritten if rewritten else clean_query
+    
