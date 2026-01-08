@@ -1,3 +1,4 @@
+# OS
 .DS_Store
 /data
 .out
@@ -7,6 +8,31 @@ test.ipynb
 __pycache__/
 *.py[codz]
 *$py.class
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+
+# Data & corpora
+corpora/
+
+# Experiment outputs
+runs/
+logs/
+outputs/
+
+# Model / HF cache
+.hf_cache/
+.cache/
+
+run.sh
+slurm-*.out
+
+synthetic/
+
 
 # C extensions
 *.so
