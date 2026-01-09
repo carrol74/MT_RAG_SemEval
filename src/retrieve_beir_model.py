@@ -23,7 +23,7 @@ class MTRetrieveModel:
             results: dict {qid: {doc_id: score}}
         """
         documents = documents_from_corpus(corpus)
-        self.retriever.index_documents(documents, isUpdate=False)
+        self.retriever.index_documents(documents, isUpdate=True)
 
         query_ids = list(queries.keys())
         queries = [queries[qid] for qid in query_ids]

@@ -4,7 +4,7 @@ import os
 import torch
 from transformers import AutoTokenizer
 class MTQueryRewriter:
-    def __init__(self, model_name = LLM_MODEL_NAME):
+    def __init__(self, model_name = REWRITE_MODEL_NAME):
         """
         Initialize query rewriter for multiple domains
         
