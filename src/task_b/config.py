@@ -3,17 +3,19 @@ Centralizes the configuration for Task B, including model, data paths, and promp
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 @dataclass
 class ModelConfig:
     """Model configuration"""
-    model_name: str = "qwen2.5-7b-instruct"  # Options: qwen2.5-7b-instruct, llama-3.1-8b-instruct, etc.
+    model_name: str = "qwen/qwen2.5-7b-instruct"  # Options: qwen/qwen2.5-7b-instruct, meta-llama/llama-3.1-8b-instruct, etc.
     temperature: float = 0.1    # Low temperature for factual accuracy
     max_tokens: int = 200       # ~150 words
     api_key: Optional[str] = None
     api_base: Optional[str] = None
+    judge_model: str = "Qwen/Qwen2.5-7B-Instruct" # Model for evaluation/judging
+
     
     def __post_init__(self):
         # Auto-load API key from environment
@@ -54,17 +56,23 @@ RESPONSE:"""
 @dataclass
 class TaskBConfig:
     """Main Task B configuration"""
-    model: ModelConfig = ModelConfig()
-    data: DataConfig = DataConfig()
-    prompt: PromptConfig = PromptConfig()
+    model: ModelConfig = field(default_factory=ModelConfig)
+    data: DataConfig = field(default_factory=DataConfig)
+    prompt: PromptConfig = field(default_factory=PromptConfig)
     
-    # Processing
-    batch_size: int = 1  # Process one at a time for now
+    batch_size: int = 8  # 1-8 depending on GPU memory
     verbose: bool = True
-    
-    # Save intermediate results
-    save_every: int = 10
+    save_every: int = 50  # 10-100 depending on dataset size
 
+    eval_provider: str = "hf" 
+    eval_config_file: str = "scripts/evaluation/config.yaml" 
 
 # Default config instance
-DEFAULT_CONFIG = TaskBConfig()
+def get_default_config() -> TaskBConfig:
+    """Get default configuration"""
+    return TaskBConfig()
+
+# For backward compatibility
+DEFAULT_CONFIG = get_default_config()
+
+

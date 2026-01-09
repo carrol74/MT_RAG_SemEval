@@ -2,11 +2,10 @@
 load reference.jsonl and parse data from conversation and passages
 """
 
-import json
 from typing import List, Dict, Any
 from pathlib import Path
 
-from Utils.utility_funcs_for_task_b import load_jsonl
+from src.Utils.utility_funcs_for_task_b import load_jsonl
 
 class TaskBDataLoader:
     """Load and parse Task B data"""
@@ -96,19 +95,19 @@ class TaskBDataLoader:
         return [p.get('text', '') for p in passages]
 
 
-# Example usage
-if __name__ == "__main__":
-    loader = TaskBDataLoader("human/generation_tasks/reference.jsonl")
-    tasks = loader.load_tasks()
+# # Example usage
+# if __name__ == "__main__":
+#     loader = TaskBDataLoader("human/generation_tasks/reference.jsonl")
+#     tasks = loader.load_tasks()
     
-    # Parse first task
-    if tasks:
-        parsed = loader.parse_task(tasks[0])
-        print(f"\nTask ID: {parsed['task_id']}")
-        print(f"Turn: {parsed['turn']}")
-        print(f"Answerability: {parsed['answerability']}")
+#     # Parse first task
+#     if tasks:
+#         parsed = loader.parse_task(tasks[0])
+#         print(f"\nTask ID: {parsed['task_id']}")
+#         print(f"Turn: {parsed['turn']}")
+#         print(f"Answerability: {parsed['answerability']}")
         
-        history, question = loader.get_conversation_text(parsed['conversation'])
-        print(f"\nHistory turns: {len(history)}")
-        print(f"Current question: {question}")
-        print(f"Number of passages: {len(parsed['passages'])}")
+#         history, question = loader.get_conversation_text(parsed['conversation'])
+#         print(f"\nHistory turns: {len(history)}")
+#         print(f"Current question: {question}")
+#         print(f"Number of passages: {len(parsed['passages'])}")

@@ -4,13 +4,15 @@ integrated data loading, generation, evaluation for Task B
 
 from tqdm import tqdm
 from typing import Dict, List
+from pathlib import Path
 
 from src.task_b.config import TaskBConfig
 from src.task_b.data_loader import TaskBDataLoader
 from src.task_b.prompt_builder import PromptBuilder
 from src.task_b.generator import GeneratorFactory
 from src.task_b.evaluator import TaskBEvaluator
-from Utils.utility_funcs_for_task_b import save_jsonl
+from src.Utils.utility_funcs_for_task_b import save_jsonl
+
 
 class TaskBPipeline:
     """Complete Task B pipeline"""
@@ -76,51 +78,55 @@ class TaskBPipeline:
     
     def _generate_all(self, tasks: List[Dict]) -> List[Dict]:
         """
-        Generate responses for all tasks
-        
-        Args:
-            tasks: List of tasks
-            
-        Returns:
-            List of tasks with predictions added
+        Generate responses for all tasks with batch processing
         """
-        results = []
+        print(f"\nGenerating responses for {len(tasks)} tasks...")
+        print(f"Using batch size: {self.config.batch_size}")
         
-        for i, task in enumerate(tqdm(tasks, desc="Generating")):
-            # Parse task
+        # Build all prompts first
+        all_prompts = []
+        for task in tasks:
             parsed = self.data_loader.parse_task(task)
-            
-            # Build prompt
             prompt = self.prompt_builder.build_prompt(
                 passages=parsed['passages'],
                 conversation=parsed['conversation']
             )
-            
-            # Generate response
-            try:
-                response = self.generator.generate(prompt)
-            except Exception as e:
-                print(f"\nError generating for task {parsed['task_id']}: {e}")
-                response = "Error generating response"
-            
-            # Add prediction to task
+            all_prompts.append(prompt)
+        
+        # Batch generation
+        try:
+            responses = self.generator.generate_batch(
+                all_prompts,
+                batch_size=self.config.batch_size
+            )
+        except Exception as e:
+            print(f"Batch generation failed: {e}")
+            print("Falling back to sequential generation...")
+            # Fallback to sequential
+            responses = []
+            for prompt in tqdm(all_prompts, desc="Generating (sequential)"):
+                try:
+                    response = self.generator.generate(prompt)
+                    responses.append(response)
+                except Exception as e:
+                    print(f"Error: {e}")
+                    responses.append("Error generating response")
+        
+        # Add predictions to tasks
+        results = []
+        for i, (task, response) in enumerate(zip(tasks, responses)):
             result = task.copy()
             result['predictions'] = [{'text': response}]
             results.append(result)
             
-            # Verbose output
-            if self.config.verbose and i < 3:  # Show first 3
+            # Verbose output (first 3 examples)
+            if self.config.verbose and i < 3:
+                parsed = self.data_loader.parse_task(task)
                 print(f"\n{'='*80}")
-                print(f"Task {parsed['task_id']}")
-                print(f"Question: {parsed['conversation'][-1]['text']}")
+                print(f"Example {i+1}")
+                print(f"Question: {parsed['conversation'][-1]['text'][:100]}...")
                 print(f"Response: {response[:200]}...")
                 print(f"{'='*80}\n")
-            
-            # Save intermediate results
-            if (i + 1) % self.config.save_every == 0:
-                temp_file = f"{self.config.data.output_file}.temp"
-                save_jsonl(results, temp_file)
-                print(f"Saved intermediate results to {temp_file}")
         
         return results
     
@@ -135,6 +141,9 @@ class TaskBPipeline:
         if filepath is None:
             filepath = self.config.data.output_file
         
+        # Ensure output directory exists
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+        
         save_jsonl(predictions, filepath)
         print(f"Saved {len(predictions)} predictions to {filepath}")
     
@@ -145,49 +154,58 @@ class TaskBPipeline:
         Returns:
             Dictionary of metrics
         """
-        metrics = self.evaluator.evaluate(
-            prediction_file=self.config.data.output_file,
-            output_file=self.config.data.eval_output,
-            provider="openai",
-            openai_key=self.config.model.api_key
-        )
-        
-        # Display results
-        print("\n" + self.evaluator.format_results(metrics))
-        
-        return metrics
-    
-    def generate_single(self, task: Dict) -> str:
-        """
-        Generate response for a single task (for debugging)
-        
-        Args:
-            task: Single task dictionary
+        if not Path(self.config.data.output_file).exists():
+            print("Predictions file not found, skipping evaluation")
+            return {}
+        try:
+            # choose evaluation provider (hf or openai)
+            if self.config.eval_provider == "hf":
+                metrics = self.evaluator.evaluate(
+                    prediction_file=self.config.data.output_file,
+                    output_file=self.config.data.eval_output,
+                    provider="hf",
+                    judge_model=self.config.model.judge_model
+                )
+            elif self.config.eval_provider == "openai":
+                metrics = self.evaluator.evaluate(
+                    prediction_file=self.config.data.output_file,
+                    output_file=self.config.data.eval_output,
+                    provider="openai",
+                    openai_key=self.config.model.api_key
+                )
+            else:
+                raise ValueError(f"Unknown eval_provider: {self.config.eval_provider}")
             
-        Returns:
-            Generated response
-        """
-        parsed = self.data_loader.parse_task(task)
-        
-        prompt = self.prompt_builder.build_prompt(
-            passages=parsed['passages'],
-            conversation=parsed['conversation']
-        )
-        
-        return self.generator.generate(prompt)
+            if metrics:
+                print("\n" + self.evaluator.format_results(metrics))
+            else:
+                print("\nEvaluation produced no metrics")
+            
+            return metrics
+            
+        except Exception as e:
+            print(f"\nEvaluation failed: {e}")
+            print("Predictions were saved, but evaluation could not be completed")
+            return {}
 
 
 # Example usage
 if __name__ == "__main__":
-    from config import DEFAULT_CONFIG
+    from src.task_b.config import TaskBConfig
+    
+    # Create default config
+    config = TaskBConfig()
     
     # Create pipeline
-    pipeline = TaskBPipeline(DEFAULT_CONFIG)
+    pipeline = TaskBPipeline(config)
     
     # Run complete pipeline
     metrics = pipeline.run()
     
+    # Print results
     print("\nFinal Results:")
-    print(f"RBalg: {metrics.get('RBalg', 'N/A'):.3f}")
-    print(f"RBllm: {metrics.get('RBllm', 'N/A'):.3f}")
-    print(f"RLF: {metrics.get('RLF', 'N/A'):.3f}")
+    if metrics:
+        for key, value in metrics.items():
+            print(f"{key}: {value:.3f}")
+    else:
+        print("No metrics available")

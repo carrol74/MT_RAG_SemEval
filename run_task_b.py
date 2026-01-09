@@ -46,7 +46,13 @@ def parse_args():
         default=200,
         help="Maximum tokens to generate"
     )
-    
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=8,
+        help="Batch size for generation (1=sequential, 8=recommended)"
+    )
+
     # API keys
     parser.add_argument(
         "--api-key",
@@ -59,6 +65,16 @@ def parse_args():
         type=str,
         default=None,
         help="API base URL (for Azure OpenAI, etc.)"
+    )
+
+    parser.add_argument(
+        "--eval-provider",
+        choices=["openai", "hf"],
+        default="hf"
+    )
+    parser.add_argument(
+        "--judge-model",
+        default="Qwen/Qwen2.5-7B-Instruct"
     )
     
     # Processing options

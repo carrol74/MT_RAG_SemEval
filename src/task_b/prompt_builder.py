@@ -113,25 +113,25 @@ class PromptBuilder:
         return self.build_prompt(passages_dicts, conversation)
 
 
-# Example usage
-if __name__ == "__main__":
-    from config import DEFAULT_CONFIG
+# # Example usage
+# if __name__ == "__main__":
+#     from src.task_b.config import DEFAULT_CONFIG
     
-    builder = PromptBuilder(DEFAULT_CONFIG.prompt)
+#     builder = PromptBuilder(DEFAULT_CONFIG.prompt)
     
-    # Example conversation
-    conversation = [
-        {'speaker': 'user', 'text': 'where does doctor strange get his powers from'},
-        {'speaker': 'agent', 'text': 'Doctor Strange gets powers from mystical entities...'},
-        {'speaker': 'user', 'text': 'how many films does he appear in'}
-    ]
+#     # Example conversation
+#     conversation = [
+#         {'speaker': 'user', 'text': 'where does doctor strange get his powers from'},
+#         {'speaker': 'agent', 'text': 'Doctor Strange gets powers from mystical entities...'},
+#         {'speaker': 'user', 'text': 'how many films does he appear in'}
+#     ]
     
-    # Example passages
-    passages = [
-        {'text': 'Doctor Strange appears in several Marvel films including...'},
-        {'text': 'The character was first portrayed by Benedict Cumberbatch...'}
-    ]
+#     # Example passages
+#     passages = [
+#         {'text': 'Doctor Strange appears in several Marvel films including...'},
+#         {'text': 'The character was first portrayed by Benedict Cumberbatch...'}
+#     ]
     
-    prompt = builder.build_prompt(passages, conversation)
-    print(prompt)
-    print("\n" + "="*80 + "\n")
+#     prompt = builder.build_prompt(passages, conversation)
+#     print(prompt)
+#     print("\n" + "="*80 + "\n")

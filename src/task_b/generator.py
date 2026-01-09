@@ -3,6 +3,7 @@ supporting multiple LLMs
 """
 
 from abc import ABC, abstractmethod
+from typing import List
 
 # HuggingFace Transformers
 try:
@@ -12,7 +13,7 @@ try:
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
 
-from config import ModelConfig
+from src.task_b.config import ModelConfig
 
 class BaseGenerator(ABC):
     """Base class for all generators"""
@@ -23,12 +24,13 @@ class BaseGenerator(ABC):
         pass
 
 class HuggingFaceGenerator(BaseGenerator):
-    """
-    HuggingFace models generator
-    Qwen, Llama, Mistral, Mixtral etc.
-    """
-    
     def __init__(self, config: ModelConfig):
+        """
+        Initialize HuggingFace generator
+        
+        Args:
+            config: ModelConfig instance
+        """
         if not TRANSFORMERS_AVAILABLE:
             raise ImportError(
                 "transformers not installed. Run: pip install transformers torch accelerate"
@@ -43,68 +45,103 @@ class HuggingFaceGenerator(BaseGenerator):
         # Load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             config.model_name,
-            trust_remote_code=True  # Required for some models like Qwen
+            trust_remote_code=True
         )
+        self.tokenizer.padding_side = 'left'
+        
+        # Fix pad_token if missing
+        if self.tokenizer.pad_token is None:
+            print(f"No pad_token found, setting to eos_token")
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         
         # Load model
         self.model = AutoModelForCausalLM.from_pretrained(
             config.model_name,
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-            device_map="auto",  # Automatically distribute across GPUs
+            dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            device_map="auto",
             trust_remote_code=True
         )
         
         print(f"Model loaded on {self.device}")
         
-        # Get chat template if available
+        # Check if tokenizer has chat template
         self.has_chat_template = hasattr(self.tokenizer, 'chat_template') and \
                                  self.tokenizer.chat_template is not None
+            
+    def generate_batch(self, prompts: List[str], batch_size: int = 8) -> List[str]:
+        """
+        Batch generation for multiple prompts
+        
+        Args:
+            prompts: List of prompts
+            batch_size: Number of prompts to process at once
+            
+        Returns:
+            List of generated responses
+        """
+        all_responses = []
+        
+        # Process in batches
+        for i in range(0, len(prompts), batch_size):
+            batch_prompts = prompts[i:i+batch_size]
+            
+            # Format prompts
+            if self.has_chat_template:
+                formatted_prompts = []
+                for prompt in batch_prompts:
+                    messages = [{"role": "user", "content": prompt}]
+                    formatted = self.tokenizer.apply_chat_template(
+                        messages,
+                        tokenize=False,
+                        add_generation_prompt=True
+                    )
+                    formatted_prompts.append(formatted)
+            else:
+                formatted_prompts = batch_prompts
+            
+            # Tokenize batch (with padding!)
+            inputs = self.tokenizer(
+                formatted_prompts,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=4096
+            ).to(self.device)
+            
+            # Record input lengths for each sample
+            input_lengths = inputs['attention_mask'].sum(dim=1)
+            
+            # Generate
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    do_sample=True if self.config.temperature > 0 else False,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    top_p=0.95,
+                    top_k=50,
+                )
+            
+            # Decode each output (remove input part)
+            for j, output in enumerate(outputs):
+                input_len = input_lengths[j].item()
+                generated_ids = output[input_len:]
+                response = self.tokenizer.decode(
+                    generated_ids, 
+                    skip_special_tokens=True
+                )
+                all_responses.append(response.strip())
+        
+        return all_responses
     
+    # Keep original generate for backward compatibility
     def generate(self, prompt: str) -> str:
-        """Generate using HuggingFace model"""
-        
-        # Apply chat template if available
-        if self.has_chat_template:
-            messages = [{"role": "user", "content": prompt}]
-            formatted_prompt = self.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True
-            )
-        else:
-            formatted_prompt = prompt
-        
-        # Tokenize
-        inputs = self.tokenizer(
-            formatted_prompt,
-            return_tensors="pt",
-            truncation=True,
-            max_length=4096  # Most models support at least 4k
-        ).to(self.device)
-        
-        # Generate
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=self.config.max_tokens,
-                temperature=self.config.temperature,
-                do_sample=True if self.config.temperature > 0 else False,
-                top_p=0.9,
-                pad_token_id=self.tokenizer.eos_token_id
-            )
-        
-        # Decode
-        full_response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        
-        # Remove the prompt from response
-        if full_response.startswith(formatted_prompt):
-            response = full_response[len(formatted_prompt):].strip()
-        else:
-            # Fallback: try to remove original prompt
-            response = full_response.replace(prompt, "").strip()
-        
-        return response
-
+        """Generate single response"""
+        return self.generate_batch([prompt], batch_size=1)[0]
+    
 class GeneratorFactory:
     """Factory to create appropriate generator"""
     
@@ -147,14 +184,11 @@ class GeneratorFactory:
             print(f"Creating HuggingFace generator for {config.model_name}...")
             return HuggingFaceGenerator(config)
 
-
 # Example usage
 if __name__ == "__main__":
-    from config import ModelConfig
+    from src.task_b.config import ModelConfig
     
-    # Test different models
-    
-    # 1. Test Qwen
+    # Test Qwen
     print("\n=== Testing Qwen ===")
     qwen_config = ModelConfig(
         model_name="Qwen/Qwen2.5-7B-Instruct",
@@ -163,16 +197,6 @@ if __name__ == "__main__":
     )
     qwen_gen = GeneratorFactory.create_generator(qwen_config)
     
-    # 2. Test Llama
-    print("\n=== Testing Llama ===")
-    llama_config = ModelConfig(
-        model_name="meta-llama/Llama-3.1-8B-Instruct",
-        temperature=0.1,
-        max_tokens=200
-    )
-    llama_gen = GeneratorFactory.create_generator(llama_config)
-    
-    # Test generation
     test_prompt = """Given documents, answer the question.
 
 PASSAGE 1
@@ -184,7 +208,3 @@ Agent:"""
     print("\n=== Generating with Qwen ===")
     response_qwen = qwen_gen.generate(test_prompt)
     print(f"Response: {response_qwen}")
-    
-    print("\n=== Generating with Llama ===")
-    response_llama = llama_gen.generate(test_prompt)
-    print(f"Response: {response_llama}")
