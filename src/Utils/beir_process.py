@@ -1,4 +1,4 @@
-from src.config import *
+from task_a.config import *
 
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -30,9 +30,11 @@ def documents_from_corpus(corpus, chunking=False):
         documents = text_splitter.split_documents(documents)
     return documents
 
-def parse_questions(raw_text):
-    lines = raw_text.split('\n')
-    turns = [line.replace("|user|: ", "").strip() for line in lines if line.strip()]
+def parse_questions(inputs):
+    turns = []
+    for input in inputs:
+        turn = input.get("speaker", "").capitalize() + ": " + input.get("text", "")
+        turns.append(turn)
     
     if not turns:
         return None

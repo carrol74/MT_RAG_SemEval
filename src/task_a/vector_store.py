@@ -1,5 +1,5 @@
 import os
-from src.config import *
+from src.task_a.config import *
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 

@@ -1,5 +1,5 @@
 import os
-from src.config import *
+from task_a.config import *
 import json
 from typing import List, Dict, Any
 from enum import Enum
@@ -19,8 +19,7 @@ def process_data(input_file_path, task_type):
         for line in f:
             if line.strip():  # Skip empty lines
                     record = json.loads(line)
-                    if record.get("input")[-1].get("speaker") != "user":
-                        continue  # Skip if the last input is not from user
+                    
                     # Filter columns based on task type
                     if task_type == TaskType.TaskTypeA or task_type == TaskType.TaskTypeC:
                         # Input for Task A & C: conversation_id, task_id, Collection, input
@@ -30,7 +29,6 @@ def process_data(input_file_path, task_type):
                             "Collection": record.get("Collection"),
                             "input": record.get("input")
                         }
-
                     elif task_type == TaskType.TaskTypeB:
                         # Input for Task B: conversation_id, task_id, Collection, input, contexts
                         filtered_record = {
@@ -46,3 +44,31 @@ def process_data(input_file_path, task_type):
                     data.append(filtered_record)
 
     return data
+
+def save_predictions(predictions, output_path):
+    """
+    Sample predictions format:
+    {
+        "conversation_id": "dd6b6ffd177f2b311abe676261279d2f",
+        "task_id": "dd6b6ffd177f2b311abe676261279d2f::2",
+        "Collection": "mt-rag-clapnq-elser-512-100-20240503",
+        "input": [
+            {
+            "speaker": "user",
+            "text": "where do the arizona cardinals play this week"
+            }
+        ]
+        "contexts":
+            [
+                {
+                    "document_id": "822086267_7384-8758-0-1374",
+                    "text": "...",
+                    "score": 27.759
+                }, ...
+            ],
+    }
+
+    """
+    with open(output_path, 'w', encoding='utf-8') as f:
+        for prediction in predictions:
+            f.write(json.dumps(prediction) + '\n')
