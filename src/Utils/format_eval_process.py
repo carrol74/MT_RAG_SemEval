@@ -1,5 +1,5 @@
 import logging
-from task_a.config import *
+from src.task_a.config import *
 import json
 from enum import Enum
 class TaskType(Enum):
@@ -20,7 +20,7 @@ def process_data(input_file_path, task_type):
                     record = json.loads(line)
                     
                     # Filter columns based on task type
-                    if task_type == TaskType.TaskTypeA or task_type == TaskType.TaskTypeC:
+                    if task_type == TaskType.TaskTypeA:
                         # Input for Task A & C: conversation_id, task_id, Collection, input
                         filtered_record = {
                             "conversation_id": record.get("conversation_id"),
@@ -28,15 +28,16 @@ def process_data(input_file_path, task_type):
                             "Collection": record.get("Collection"),
                             "input": record.get("input")
                         }
-                    elif task_type == TaskType.TaskTypeB:
+                    elif task_type == TaskType.TaskTypeB or task_type == TaskType.TaskTypeC:
                         # Input for Task B: conversation_id, task_id, Collection, input, contexts
-                        filtered_record = {
-                            "conversation_id": record.get("conversation_id"),
-                            "task_id": record.get("task_id"),
-                            "Collection": record.get("Collection"),
-                            "input": record.get("input"),
-                            "contexts": record.get("contexts", [])
-                        }
+                        # filtered_record = {
+                        #     "conversation_id": record.get("conversation_id"),
+                        #     "task_id": record.get("task_id"),
+                        #     "Collection": record.get("Collection"),
+                        #     "input": record.get("input"),
+                        #     "contexts": record.get("contexts", [])
+                        # }
+                        filtered_record = record  # Use full record for Task B & C
                     else:  # TaskTypeT: all columns
                         filtered_record = record
                     

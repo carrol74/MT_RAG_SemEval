@@ -1,9 +1,7 @@
 import argparse
 import os
 from pathlib import Path
-from src.task_a.config import *
 from src.task_b.config import TaskBConfig, ModelConfig, DataConfig
-from src.Utils.format_eval_process import TaskType
 from src.task_c.rag_pipeline import MTRAGPipeline
 
 def parse_args():
@@ -12,8 +10,7 @@ def parse_args():
     # Re-use Task B arguments for consistency
     parser.add_argument("--input", type=str, default="human/generation_tasks/reference.jsonl", help="Input file path")
     parser.add_argument("--output", type=str, default="outputs/task_c_predictions.jsonl", help="Output file path")
-    # todo: where is the model
-    parser.add_argument("--model", type=str, default=REWRITE_MODEL_NAME, help="Model name")
+    parser.add_argument("--model", type=str, default="Qwen/Qwen2.5-7B-Instruct", help="Model name")
     parser.add_argument("--temperature", type=float, default=0.1, help="Generation temperature")
     parser.add_argument("--max-tokens", type=int, default=200, help="Max tokens")
     parser.add_argument("--batch-size", type=int, default=1, help="Batch size (Keep low for RAG to manage memory)")

@@ -1,8 +1,8 @@
 import logging
 
-from task_a.config import *
-from src.retriever import MTHybridRetriever
-from src.query_rewriter import MTQueryRewriter
+from src.task_a.config import *
+from src.task_a.retriever import MTHybridRetriever
+from src.task_a.query_rewriter import MTQueryRewriter
 from src.Utils.beir_process import documents_from_corpus, parse_questions
 
 class MTRetrieveModel:
@@ -10,8 +10,8 @@ class MTRetrieveModel:
     A Wrapper class that makes your custom pipeline look like a BEIR model.
     It implements the 'search' function required by EvaluateRetrieval.
     """
-    def __init__(self, domain):
-        self.retriever = MTHybridRetriever(domain=domain)
+    def __init__(self, domain, alpha=0.8):
+        self.retriever = MTHybridRetriever(domain=domain, alpha=alpha)
         self.domain = domain
     def search(self, corpus, queries, top_k, score_function, **kwargs):
         """

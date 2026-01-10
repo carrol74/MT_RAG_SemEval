@@ -57,7 +57,7 @@ class MTRAGPipeline:
         # 1. Load all tasks
         print("Loading tasks...")
         tasks = process_data(
-            input_file=self.config.data.input_file,
+            input_file_path=self.config.data.input_file,
             task_type=TaskType.TaskTypeC
         )
         
@@ -77,25 +77,25 @@ class MTRAGPipeline:
             retriever = self.retrievers[domain]
 
             # Parse and rewrite query
-            input_conversation = task.get("input", [])         
-            history, last_question = parse_questions(input_conversation)
-            rewritten_query = self.query_rewriter.rewrite_query(last_question, history)
+            history = [input["text"] for input in task["input"] if input["speaker"] == "user"]
+            last_query = history[-1]
+            rewritten_query = self.query_rewriter.rewrite_query(last_query, history)
 
             # Retrieve documents
-            retrieved_docs= retriever.search(rewritten_query, k=self.config.top_k, return_content=True)
-
+            retrieved_docs = retriever.search(rewritten_query, k=self.config.top_k, return_content=True)
+            task['contexts'] = retrieved_docs
             # Build prompt
-            prompt = self.prompt_builder.build_prompt(input_conversation, retrieved_docs)
+            prompt = self.prompt_builder.build_prompt(retrieved_docs, task['input'])
 
             # Generate response
             generated_response = self.generator.generate(prompt)
 
             # Compile prediction
-            task['predictions'] = {'text': generated_response}
+            task['predictions'] = [{'text': generated_response}]
             predicated_tasks.append(task)
 
         # 4. Save predictions
         save_predictions(
             predictions=predicated_tasks,
-            output_file=self.config.data.output_file
+            output_path=self.config.data.output_file
         )

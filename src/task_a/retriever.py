@@ -1,6 +1,6 @@
 import os
-from src.config import *
-from src.vector_store import MTVectorStore
+from src.task_a.config import *
+from src.task_a.vector_store import MTVectorStore
 from langchain_community.retrievers import BM25Retriever
 from sentence_transformers import CrossEncoder
 class MTHybridRetriever:
@@ -52,13 +52,14 @@ class MTHybridRetriever:
         reranked_with_scores.sort(key=lambda x: x[1], reverse=True)
         final_hits = reranked_with_scores[:k]
         if return_content:
-            return {
-                doc_id: {
+            return [
+                {
+                    "document_id": doc_id,
                     "text": doc_contents[doc_id],
-                    "score": float(score)
-                } 
+                    "score": float(score),
+                }
                 for doc_id, score in final_hits
-            }
+            ]
         clean_results = {
             doc_id: float(score) 
             for doc_id, score in final_hits

@@ -1,7 +1,7 @@
 from transformers import pipeline
 import json
 from json import JSONDecodeError
-from src.config import *
+from src.task_a.config import *
 import os
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM

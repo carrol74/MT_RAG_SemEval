@@ -1,8 +1,6 @@
 import json
 import argparse
 import os
-import sys
-from collections import Counter
 
 MAX_CONTEXTS = 10
 
