@@ -1,7 +1,6 @@
-import os
+import logging
 from task_a.config import *
 import json
-from typing import List, Dict, Any
 from enum import Enum
 class TaskType(Enum):
     TaskTypeA = "TaskA"
@@ -72,3 +71,4 @@ def save_predictions(predictions, output_path):
     with open(output_path, 'w', encoding='utf-8') as f:
         for prediction in predictions:
             f.write(json.dumps(prediction) + '\n')
+    logging.info(f"{len(predictions)} Predictions saved to {output_path}")

@@ -1,6 +1,6 @@
 import logging
 
-from src.config import *
+from task_a.config import *
 from src.retriever import MTHybridRetriever
 from src.query_rewriter import MTQueryRewriter
 from src.Utils.beir_process import documents_from_corpus, parse_questions
