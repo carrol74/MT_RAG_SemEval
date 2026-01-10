@@ -108,7 +108,7 @@ def main():
         data=DataConfig(
             input_file=args.input,
             output_file=args.output,
-            eval_output=args.output.replace(".jsonl", "_eval.json")
+            eval_output=args.output.replace(".jsonl", "_eval.jsonl")
         ),
         verbose=args.verbose,
         save_every=args.save_every

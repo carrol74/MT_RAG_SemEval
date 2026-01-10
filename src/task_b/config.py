@@ -34,7 +34,7 @@ class DataConfig:
     output_file: str = "outputs/task_b_predictions.jsonl"
     
     # Evaluation output
-    eval_output: str = "outputs/task_b_evaluation.json"
+    eval_output: str = "outputs/task_b_evaluation.jsonl"
 
 @dataclass
 class PromptConfig:

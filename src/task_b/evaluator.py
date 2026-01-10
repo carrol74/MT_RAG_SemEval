@@ -109,11 +109,7 @@ class TaskBEvaluator:
             "-e", str(self.config_file),
             "--provider", provider
         ]
-        
-        if provider == "hf":
-            cmd.extend(["--judge_model", judge_model])
-        elif provider == "openai":
-            cmd.extend(["--openai_key", openai_key])
+    
         """
         Run official MTRAGEval evaluation
         
@@ -216,6 +212,14 @@ class TaskBEvaluator:
             print("Warning: No metrics found in results")
             return {}
         
+        print(f"Found {len(tasks_with_metrics)} tasks with metrics")
+        
+        # Debug: show first task's metrics structure
+        if tasks_with_metrics:
+            print(f"Sample metrics structure:")
+            for k, v in list(tasks_with_metrics[0].items())[:3]:  # Show first 3 metrics
+                print(f"  {k}: {type(v).__name__} = {v}")
+        
         # Aggregate metrics across all tasks
         aggregated = {}
         
@@ -223,13 +227,39 @@ class TaskBEvaluator:
         metric_names = tasks_with_metrics[0].keys()
         
         for metric_name in metric_names:
-            values = [
-                m[metric_name] 
-                for m in tasks_with_metrics 
-                if metric_name in m and m[metric_name] is not None
-            ]
+            values = []
+            skipped = 0
+            
+            for m in tasks_with_metrics:
+                if metric_name not in m or m[metric_name] is None:
+                    skipped += 1
+                    continue
+                
+                val = m[metric_name]
+                
+                # Handle different value types
+                if isinstance(val, (int, float)):
+                    values.append(float(val))
+                elif isinstance(val, list):
+                    # If it's a list of numbers, take the mean
+                    if val and all(isinstance(x, (int, float)) for x in val):
+                        values.append(sum(val) / len(val))
+                    else:
+                        skipped += 1
+                elif isinstance(val, bool):
+                    # Convert bool to int (True=1, False=0)
+                    values.append(float(val))
+                else:
+                    skipped += 1
+            
+            # Compute average
             if values:
                 aggregated[metric_name] = sum(values) / len(values)
+                if skipped > 0:
+                    print(f"  {metric_name}: averaged {len(values)} values (skipped {skipped})")
+            else:
+                print(f"Warning: No valid values for metric '{metric_name}' (skipped {skipped})")
+                aggregated[metric_name] = None
         
         return aggregated
     
@@ -304,7 +334,7 @@ if __name__ == "__main__":
         
         metrics = evaluator.evaluate(
             prediction_file=pred_file,
-            output_file="outputs/task_b_evaluation.json",
+            output_file="outputs/task_b_evaluation.jsonl",
             provider="hf",
             openai_key=os.getenv("OPENAI_API_KEY")
         )

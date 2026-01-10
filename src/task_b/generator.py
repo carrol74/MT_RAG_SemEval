@@ -45,9 +45,10 @@ class HuggingFaceGenerator(BaseGenerator):
         # Load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             config.model_name,
-            trust_remote_code=True
+            trust_remote_code=True,
+            padding_side='left'
         )
-        self.tokenizer.padding_side = 'left'
+        #self.tokenizer.padding_side = 'left'
         
         # Fix pad_token if missing
         if self.tokenizer.pad_token is None:
@@ -127,10 +128,8 @@ class HuggingFaceGenerator(BaseGenerator):
             
             # Decode each output (remove input part)
             for j, output in enumerate(outputs):
-                input_len = input_lengths[j].item()
-                generated_ids = output[input_len:]
                 response = self.tokenizer.decode(
-                    generated_ids, 
+                    output[len(inputs['input_ids'][j]):], 
                     skip_special_tokens=True
                 )
                 all_responses.append(response.strip())
