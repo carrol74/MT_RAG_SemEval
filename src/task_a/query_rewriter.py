@@ -1,6 +1,4 @@
 from transformers import pipeline
-import json
-from json import JSONDecodeError
 from src.task_a.config import *
 import os
 import torch
@@ -15,74 +13,74 @@ class MTQueryRewriter:
         """
         hf_token = os.getenv("HF_TOKEN", None)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        # self.model = pipeline(model=model_name, device=device, dtype=torch.bfloat16)
-        # self.tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            dtype="auto",
-            device_map="auto"
-        )
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = pipeline(model=model_name, device=device, dtype=torch.bfloat16)
 
     def rewrite_query(self, history, query):
-        system_prompt = """You are a query generation assistant for a retrieval system.
-        Your task: Generate 2-3 diverse search queries based on the user's question and conversation history.
+        """
+        Rewrite query based on conversation history
+        
+        Args:
+            query: Original user query
+            history: List of previous conversation turns
+        """
+        system_prompt = """You are a query rewriting assistant for a retrieval system.
+
+        Your task: Rewrite the user's last question into a clear, standalone question that includes all necessary context from the conversation history.
+
         Rules:
-        1. Resolve all pronouns (he, she, it, they, that, this) using conversation history
-        2. Generate queries from different angles to capture relevant documents
-        3. Keep queries concise and search-friendly
-        4. Each query should target different aspects or phrasings
+        1. Resolve pronouns (he, she, it, they, that, this) using conversation history
+        2. Keep the question in natural language - don't convert to keywords
+        3. Preserve the original question's intent and specificity
+        4. Only add context that's clearly needed - don't add new assumptions
+        5. Output ONLY the rewritten question, nothing else
 
         Examples:
 
         History:
-        User: "Who coaches the Patriots?"
-        Assistant: "Bill Belichick"
+        User: "Where does Doctor Strange get his powers from?"
+        Assistant: "Doctor Strange gains his powers from studying mystic arts..."
 
-        Last Question: "How many Super Bowls has he won?"
-        Output:
-        "Bill Belichick Super Bowl wins", "Bill Belichick championships as Patriots coach", "New England Patriots Super Bowl victories under Belichick"
+        Last Question: "How many films does he appear in?"
+        Rewritten: "How many films does Doctor Strange appear in?"
 
         ---
 
         History:
-        User: "What is RAG in AI?"
-        Assistant: "RAG stands for Retrieval-Augmented Generation..."
+        User: "What is the capital of France?"
+        Assistant: "The capital of France is Paris."
 
-        Last Question: "What are the main benefits?"
-        Output:
-        "benefits of retrieval-augmented generation", "advantages of RAG systems", "why use RAG in language models"
+        Last Question: "What's its population?"
+        Rewritten: "What is the population of Paris?"
         """
+        history_text = ""
+        for turn in history:
+            history_text += f'{turn}\n'
         
-        prompt = f"""History:
-            {history}
+        user_prompt = f"""History:
+        {history_text if history_text else "(No previous conversation)"}
 
         Last Question: "{query}"
-        Output:"""
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
-        ]
-    
-        text = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-        )
+        Rewritten:"""
         
-        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
-        
-        generated_ids = self.model.generate(
-            **model_inputs,
-            max_new_tokens=512,
-            do_sample=True
+        prompt = system_prompt + "---Now Your Turn\n" + user_prompt
+        # print("Prompt to LLM:", prompt)
+        generation = self.model(
+            prompt,
+            do_sample=True,
+            temperature=0.3,
+            top_p=0.7,
+            max_new_tokens=100,
+            return_full_text=False
         )
-        generated_ids = [
-            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
-        ]
-        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-        return response
+        rewritten = generation[0]['generated_text'].strip().lower()
+        rewritten = rewritten.split('\n')[0]  # Take only first line
+        rewritten = rewritten.strip('"\'')  # Remove quotes if added
+        # # Fallback: if rewrite fails or is too short, return original
+        if len(rewritten) < 3 or rewritten == query.lower():
+            return query
+        
+        return rewritten
 
     def format_rewrite(self, conversations):
         """
@@ -111,7 +109,7 @@ class MTQueryRewriter:
         generation = self.model(
             prompt,
             do_sample=True,
-            temperature=0.6,
+            temperature=0.9,
             top_p=0.95,
             max_new_tokens=150,
             return_full_text=False
