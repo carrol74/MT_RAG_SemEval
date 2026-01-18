@@ -79,7 +79,7 @@ class MTRAGPipeline:
             # Parse and rewrite query
             history = [input["text"] for input in task["input"] if input["speaker"] == "user"]
             last_query = history[-1]
-            rewritten_query = self.query_rewriter.rewrite_query(last_query, history)
+            rewritten_query = self.query_rewriter.rewrite_query(history, last_query)
 
             # Retrieve documents
             retrieved_docs = retriever.search(rewritten_query, k=self.config.top_k, return_content=True)

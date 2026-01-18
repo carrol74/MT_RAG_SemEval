@@ -2,7 +2,8 @@ from transformers import pipeline
 from src.task_a.config import *
 import os
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+import json
+from json import JSONDecodeError
 class MTQueryRewriter:
     def __init__(self, model_name = REWRITE_MODEL_NAME):
         """
@@ -64,7 +65,6 @@ class MTQueryRewriter:
         Rewritten:"""
         
         prompt = system_prompt + "---Now Your Turn\n" + user_prompt
-        # print("Prompt to LLM:", prompt)
         generation = self.model(
             prompt,
             do_sample=True,
@@ -109,9 +109,9 @@ class MTQueryRewriter:
         generation = self.model(
             prompt,
             do_sample=True,
-            temperature=0.9,
-            top_p=0.95,
-            max_new_tokens=150,
+            temperature=0.3,
+            top_p=0.7,
+            max_new_tokens=100,
             return_full_text=False
         )
         

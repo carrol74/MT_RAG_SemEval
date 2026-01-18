@@ -14,7 +14,7 @@ def parse_args():
     parser.add_argument("--temperature", type=float, default=0.1, help="Generation temperature")
     parser.add_argument("--max-tokens", type=int, default=200, help="Max tokens")
     parser.add_argument("--batch-size", type=int, default=1, help="Batch size (Keep low for RAG to manage memory)")
-    parser.add_argument("--top-k", type=int, default=5, help="Number of documents to retrieve")
+    parser.add_argument("--top-k", type=int, default=10, help="Number of documents to retrieve")
     
     return parser.parse_args()
 
