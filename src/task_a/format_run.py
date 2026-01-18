@@ -1,9 +1,9 @@
 import logging
 import os
 
-from src.config import *
-from src.retriever import MTHybridRetriever
-from src.query_rewriter import MTQueryRewriter
+from src.task_a.config import *
+from src.task_a.retriever import MTHybridRetriever
+from src.task_a.query_rewriter import MTQueryRewriter
 from src.Utils.beir_process import documents_from_corpus, parse_questions
 from src.Utils.format_eval_process import process_data, TaskType
 
@@ -16,39 +16,6 @@ def build_retriever_for_domain(domain, corpus):
     documents = documents_from_corpus(corpus)
     retriever.index_documents(documents, isUpdate=False)
     return retriever
-
-def batch_tasks(tasks):
-    # decide on the domains involved
-
-    ...
-
-
-def save_predictions(tasks, predictions, output_path):
-    """
-    Sample predictions format:
-    {
-        "conversation_id": "dd6b6ffd177f2b311abe676261279d2f",
-        "task_id": "dd6b6ffd177f2b311abe676261279d2f::2",
-        "Collection": "mt-rag-clapnq-elser-512-100-20240503",
-        "input": [
-            {
-            "speaker": "user",
-            "text": "where do the arizona cardinals play this week"
-            }
-        ]
-        "contexts":
-            [
-                {
-                    "document_id": "822086267_7384-8758-0-1374",
-                    "text": "...",
-                    "score": 27.759
-                }, ...
-            ],
-    }
-
-    """
-    # save by matching task_id?
-    ...
 
 if __name__ == "__main__":
     logging.basicConfig(
@@ -87,7 +54,7 @@ if __name__ == "__main__":
         for doc_id, score in retrieved_docs.items():
             context_list.append({
                 "document_id": doc_id,
-                "text": "",  # Placeholder for document text if needed
+                "text": retriever.corpus[doc_id]["text"],
                 "score": score
             })
         prediction = {
