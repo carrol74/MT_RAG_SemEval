@@ -308,7 +308,7 @@ class TaskBEvaluator:
 if __name__ == "__main__":
     import os
     
-    print("Testing TaskBEvaluator...")
+    print("Running TaskBEvaluator...")
     
     try:
         # Initialize evaluator
@@ -320,7 +320,7 @@ if __name__ == "__main__":
         print(f"Config exists: {evaluator.config_file.exists()}")
         
         # Check if prediction file exists
-        pred_file = "outputs/task_b_predictions.jsonl"
+        pred_file = "outputs/task_b_temp0.1_allon_improvepromp.jsonl"
         if not Path(pred_file).exists():
             print(f"\nPrediction file not found: {pred_file}")
             print("Please run the generation pipeline first:")
