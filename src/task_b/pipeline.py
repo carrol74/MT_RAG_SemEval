@@ -2,6 +2,7 @@
 integrated data loading, generation, evaluation for Task B
 """
 
+from sympy import re
 from tqdm import tqdm
 from typing import Dict, List
 from pathlib import Path
@@ -75,6 +76,7 @@ class TaskBPipeline:
         metrics = self._evaluate()
         
         return metrics
+        #return {}
     
     def _generate_all(self, tasks: List[Dict]) -> List[Dict]:
         """
@@ -82,25 +84,42 @@ class TaskBPipeline:
         """
         print(f"\nGenerating responses for {len(tasks)} tasks...")
         print(f"Using batch size: {self.config.batch_size}")
+        print(f"use_system_prompt: {self.config.prompt.use_system_prompt}")
+        print(f"use_few_shot: {self.config.prompt.use_few_shot}")
         
         # Build all prompts first
         all_prompts = []
         for task in tasks:
             parsed = self.data_loader.parse_task(task)
-            prompt = self.prompt_builder.build_prompt(
-                passages=parsed['passages'],
-                conversation=parsed['conversation']
-            )
+
+            if self.config.prompt.use_system_prompt:
+                prompt = self.prompt_builder.build_prompt_with_system_role(
+                    passages=parsed['passages'],
+                    conversation=parsed['conversation']
+                )
+
+            else:
+                prompt = self.prompt_builder.build_prompt(
+                    passages=parsed['passages'],
+                    conversation=parsed['conversation']
+                )
+            
             all_prompts.append(prompt)
         
         # Batch generation
         try:
             responses = self.generator.generate_batch(
                 all_prompts,
-                batch_size=self.config.batch_size
+                batch_size=self.config.batch_size,
+                use_system_prompt=self.config.prompt.use_system_prompt
             )
         except Exception as e:
+            import traceback
             print(f"Batch generation failed: {e}")
+            # # debug
+            # print("Full traceback:")
+            # print(traceback.format_exc())
+
             print("Falling back to sequential generation...")
             # Fallback to sequential
             responses = []
@@ -189,23 +208,23 @@ class TaskBPipeline:
             return {}
 
 
-# Example usage
-if __name__ == "__main__":
-    from src.task_b.config import TaskBConfig
+# # Example usage
+# if __name__ == "__main__":
+#     from src.task_b.config import TaskBConfig
     
-    # Create default config
-    config = TaskBConfig()
+#     # Create default config
+#     config = TaskBConfig()
     
-    # Create pipeline
-    pipeline = TaskBPipeline(config)
+#     # Create pipeline
+#     pipeline = TaskBPipeline(config)
     
-    # Run complete pipeline
-    metrics = pipeline.run()
+#     # Run complete pipeline
+#     metrics = pipeline.run()
     
-    # Print results
-    print("\nFinal Results:")
-    if metrics:
-        for key, value in metrics.items():
-            print(f"{key}: {value:.3f}")
-    else:
-        print("No metrics available")
+#     # Print results
+#     print("\nFinal Results:")
+#     if metrics:
+#         for key, value in metrics.items():
+#             print(f"{key}: {value:.3f}")
+#     else:
+#         print("No metrics available")

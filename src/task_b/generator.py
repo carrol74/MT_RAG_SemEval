@@ -12,8 +12,13 @@ try:
     TRANSFORMERS_AVAILABLE = True
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
+from transformers import BitsAndBytesConfig
 
 from src.task_b.config import ModelConfig
+
+print(f"Available GPUs: {torch.cuda.device_count()}")
+for i in range(torch.cuda.device_count()):
+    print(f"  GPU {i}: {torch.cuda.get_device_name(i)}")
 
 class BaseGenerator(ABC):
     """Base class for all generators"""
@@ -55,11 +60,17 @@ class HuggingFaceGenerator(BaseGenerator):
             print(f"No pad_token found, setting to eos_token")
             self.tokenizer.pad_token = self.tokenizer.eos_token
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
-        
+
+        # # 4-bit quantization config
+        # quantization_config = BitsAndBytesConfig(
+        #     load_in_4bit=True,
+        #     bnb_4bit_compute_dtype=torch.float16
+        # )
         # Load model
         self.model = AutoModelForCausalLM.from_pretrained(
             config.model_name,
             dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            # quantization_config=quantization_config,# 4-bit quantization
             device_map="auto",
             trust_remote_code=True
         )
@@ -70,13 +81,15 @@ class HuggingFaceGenerator(BaseGenerator):
         self.has_chat_template = hasattr(self.tokenizer, 'chat_template') and \
                                  self.tokenizer.chat_template is not None
             
-    def generate_batch(self, prompts: List[str], batch_size: int = 8) -> List[str]:
+    def generate_batch(self, prompts: List[str], batch_size: int = 8,
+                       use_system_prompt: bool = False) -> List[str]:
         """
         Batch generation for multiple prompts
         
         Args:
             prompts: List of prompts
             batch_size: Number of prompts to process at once
+            use_system_prompt: whether to use system/user separation
             
         Returns:
             List of generated responses
@@ -91,7 +104,21 @@ class HuggingFaceGenerator(BaseGenerator):
             if self.has_chat_template:
                 formatted_prompts = []
                 for prompt in batch_prompts:
-                    messages = [{"role": "user", "content": prompt}]
+                    if isinstance(prompt, dict) and use_system_prompt:
+                        messages = [
+                            {"role": "system", "content": prompt['system']},
+                            {"role": "user", "content": prompt['user']}
+                        ]
+                    else:
+                        if isinstance(prompt, dict):
+                            content = prompt['user']
+                        else:
+                            content = prompt
+                        messages = [{"role": "user", "content": content}]
+
+                    # print(f"DEBUG: messages = {messages}")
+                    # print(f"DEBUG: messages[0]['content'] type = {type(messages[0]['content'])}")
+  
                     formatted = self.tokenizer.apply_chat_template(
                         messages,
                         tokenize=False,
@@ -99,7 +126,14 @@ class HuggingFaceGenerator(BaseGenerator):
                     )
                     formatted_prompts.append(formatted)
             else:
-                formatted_prompts = batch_prompts
+                formatted_prompts = []
+                for prompt in batch_prompts:
+                    if isinstance(prompt, dict):
+                        text = prompt['user']
+                    else:
+                        text = prompt
+                    formatted_prompts.append(text)
+                #formatted_prompts = batch_prompts
             
             # Tokenize batch (with padding!)
             inputs = self.tokenizer(
@@ -122,8 +156,9 @@ class HuggingFaceGenerator(BaseGenerator):
                     do_sample=True if self.config.temperature > 0 else False,
                     pad_token_id=self.tokenizer.pad_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,
-                    top_p=0.95,
-                    top_k=50,
+                    repetition_penalty=1.1,
+                    top_p=0.9, #0.9, 0.95
+                    no_repeat_ngram_size=3,
                 )
             
             # Decode each output (remove input part)
@@ -183,27 +218,27 @@ class GeneratorFactory:
             print(f"Creating HuggingFace generator for {config.model_name}...")
             return HuggingFaceGenerator(config)
 
-# Example usage
-if __name__ == "__main__":
-    from src.task_b.config import ModelConfig
+# # Example usage
+# if __name__ == "__main__":
+#     from src.task_b.config import ModelConfig
     
-    # Test Qwen
-    print("\n=== Testing Qwen ===")
-    qwen_config = ModelConfig(
-        model_name="Qwen/Qwen2.5-7B-Instruct",
-        temperature=0.1,
-        max_tokens=200
-    )
-    qwen_gen = GeneratorFactory.create_generator(qwen_config)
+#     # Test Qwen
+#     print("\n=== Testing Qwen ===")
+#     qwen_config = ModelConfig(
+#         model_name="Qwen/Qwen2.5-7B-Instruct",
+#         temperature=0.1,
+#         max_tokens=200
+#     )
+#     qwen_gen = GeneratorFactory.create_generator(qwen_config)
     
-    test_prompt = """Given documents, answer the question.
+#     test_prompt = """Given documents, answer the question.
 
-PASSAGE 1
-Doctor Strange is a fictional superhero appearing in Marvel Comics.
+# PASSAGE 1
+# Doctor Strange is a fictional superhero appearing in Marvel Comics.
 
-User: Who is Doctor Strange?
-Agent:"""
+# User: Who is Doctor Strange?
+# Agent:"""
     
-    print("\n=== Generating with Qwen ===")
-    response_qwen = qwen_gen.generate(test_prompt)
-    print(f"Response: {response_qwen}")
+#     print("\n=== Generating with Qwen ===")
+#     response_qwen = qwen_gen.generate(test_prompt)
+#     print(f"Response: {response_qwen}")

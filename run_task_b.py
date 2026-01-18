@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument(
         "--temperature",
         type=float,
-        default=0.1,
+        default=None,
         help="Generation temperature"
     )
     parser.add_argument(
@@ -100,7 +100,7 @@ def main():
     config = TaskBConfig(
         model=ModelConfig(
             model_name=args.model,
-            temperature=args.temperature,
+            temperature=args.temperature if args.temperature is not None else ModelConfig().temperature,
             max_tokens=args.max_tokens,
             api_key=args.api_key or os.getenv("OPENAI_API_KEY"),
             api_base=args.api_base or os.getenv("OPENAI_API_BASE")
@@ -110,6 +110,7 @@ def main():
             output_file=args.output,
             eval_output=args.output.replace(".jsonl", "_eval.jsonl")
         ),
+        batch_size=args.batch_size,
         verbose=args.verbose,
         save_every=args.save_every
     )
@@ -120,6 +121,8 @@ def main():
     print("="*80)
     print(f"Model:        {config.model.model_name}")
     print(f"Temperature:  {config.model.temperature}")
+    print(f"Few-shot:     {config.prompt.use_few_shot}")
+    print(f"System/User prompt separate: {config.prompt.use_system_prompt}")
     print(f"Input:        {config.data.input_file}")
     print(f"Output:       {config.data.output_file}")
     print("="*80 + "\n")

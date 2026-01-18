@@ -1,22 +1,25 @@
 import sys
+from pathlib import Path
 sys.path.insert(0, 'scripts/evaluation')
 
 from scripts.evaluation.run_algorithmic import run_algorithmic_judges
 
+input_file = 'outputs/task_b_ffffff.jsonl'
+p = Path(input_file)
+output_file = str(p.with_name(p.stem + '_alg_metrics.jsonl')) 
+
 run_algorithmic_judges(
     evaluator_file='scripts/evaluation/config.yaml',
-    input_file='outputs/task_b_predictions.jsonl',
-    output_file='outputs/task_b_alg_metrics.jsonl'
+    input_file=input_file,
+    output_file=output_file
 )
 
-print("Done! Results saved to: outputs/task_b_alg_metrics.jsonl")
+print(f"Done! Results saved to: {output_file}")
 
 import json
 
-input_file = "outputs/task_b_alg_metrics.jsonl"
-
 tasks_with_metrics = []
-with open(input_file, 'r') as f:
+with open(output_file, 'r') as f:
     for line in f:
         if line.strip():
             task = json.loads(line)
