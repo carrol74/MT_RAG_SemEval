@@ -55,7 +55,7 @@ class MTQueryRewriter:
         """
         history_text = ""
         for turn in history:
-            history_text += f'{turn}\n'
+            history_text += f'{turn["speaker"]}: {turn["text"]}\n'
         
         user_prompt = f"""History:
         {history_text if history_text else "(No previous conversation)"}
