@@ -64,13 +64,15 @@ class HuggingFaceGenerator(BaseGenerator):
         # # 4-bit quantization config
         # quantization_config = BitsAndBytesConfig(
         #     load_in_4bit=True,
-        #     bnb_4bit_compute_dtype=torch.float16
+        #     bnb_4bit_quant_type="nf4",
+        #     bnb_4bit_compute_dtype=torch.bfloat16,
+        #     bnb_4bit_use_double_quant=True,
         # )
         # Load model
         self.model = AutoModelForCausalLM.from_pretrained(
             config.model_name,
             dtype=torch.float16 if self.device == "cuda" else torch.float32,
-            # quantization_config=quantization_config,# 4-bit quantization
+            #quantization_config=quantization_config,# 4-bit quantization
             device_map="auto",
             trust_remote_code=True
         )
@@ -156,9 +158,9 @@ class HuggingFaceGenerator(BaseGenerator):
                     do_sample=True if self.config.temperature > 0 else False,
                     pad_token_id=self.tokenizer.pad_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,
-                    repetition_penalty=1.1,
-                    top_p=0.9, #0.9, 0.95
-                    no_repeat_ngram_size=3,
+                    repetition_penalty=self.config.repetition_penalty,
+                    top_p=self.config.top_p,
+                    #no_repeat_ngram_size=3,
                 )
             
             # Decode each output (remove input part)

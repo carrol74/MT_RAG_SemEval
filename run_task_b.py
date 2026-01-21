@@ -1,5 +1,13 @@
 """
 command line interface to run the full pipeline
+
+example usage:
+python -u run_task_b.py \
+    --model Qwen/Qwen2.5-7B-Instruct \
+    --batch-size 8 \
+    --temperature 0.1 \
+    --top-p 0.9 \
+	--output outputs/task_b_output.jsonl \
 """
 
 import argparse
@@ -39,6 +47,18 @@ def parse_args():
         type=float,
         default=None,
         help="Generation temperature"
+    )
+    parser.add_argument(
+        "--repetition-penalty",
+        type=float,
+        default=1.0,
+        help="Repetition penalty"
+    )
+    parser.add_argument(
+        "--top-p",
+        type=float,
+        default=0.9, #0.9, 0.95
+        help="Top-p (nucleus) sampling parameter"
     )
     parser.add_argument(
         "--max-tokens",
@@ -101,6 +121,8 @@ def main():
         model=ModelConfig(
             model_name=args.model,
             temperature=args.temperature if args.temperature is not None else ModelConfig().temperature,
+            top_p=args.top_p,
+            repetition_penalty=args.repetition_penalty, 
             max_tokens=args.max_tokens,
             api_key=args.api_key or os.getenv("OPENAI_API_KEY"),
             api_base=args.api_base or os.getenv("OPENAI_API_BASE")
@@ -121,6 +143,8 @@ def main():
     print("="*80)
     print(f"Model:        {config.model.model_name}")
     print(f"Temperature:  {config.model.temperature}")
+    print(f"Repetition Penalty: {config.model.repetition_penalty}")
+    print(f"Top-p:        {config.model.top_p}")
     print(f"Few-shot:     {config.prompt.use_few_shot}")
     print(f"System/User prompt separate: {config.prompt.use_system_prompt}")
     print(f"Input:        {config.data.input_file}")
