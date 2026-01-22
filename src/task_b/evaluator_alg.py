@@ -4,7 +4,7 @@ sys.path.insert(0, 'scripts/evaluation')
 
 from scripts.evaluation.run_algorithmic import run_algorithmic_judges
 
-input_file = 'outputs/task_b_ffffff.jsonl'
+input_file = 'outputs/task_b_21_p0.95_zeroshot_nosepa.jsonl'
 p = Path(input_file)
 output_file = str(p.with_name(p.stem + '_alg_metrics.jsonl')) 
 
