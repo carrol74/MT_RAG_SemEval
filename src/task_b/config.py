@@ -45,17 +45,18 @@ class PromptConfig:
     max_words: int = 150
     # IDK phrase when unanswerable
     idk_phrase: str = "I do not have specific information"
-    use_few_shot: bool = False  
-    use_system_prompt: bool = False
+    use_few_shot: bool = True  
+    use_system_prompt: bool = True
     
     # Prompt template (following MTRAG paper)(zero-shot)
     zero_shot_template: str = """Given one or more documents and a user query, generate a response to the query using less than {max_words} words that is grounded in the provided documents.
 
 INSTRUCTIONS:
-1. FAITHFULNESS: Base your answer ONLY on information in the provided passages
-2. COMPLETENESS: Address all parts of the question that can be answered
-3. CLARITY: Be concise and direct
-4. UNANSWERABLE: If the passages do not contain the answer, say ONLY: "{idk_phrase}"
+1. FAITHFULNESS: Use ONLY information stated in the provided passages. Do not add outside knowledge.
+2. COMPLETENESS: Answer all parts of the question that are supported by the passages.
+3. PARTIAL ANSWERS: If some parts of the question are not supported, answer the supported parts and do NOT speculate about the rest.
+4. UNANSWERABLE: Say ONLY "{idk_phrase}" **only if none of the question can be answered from the passages.**
+5. STYLE: Be concise. Do not explain what is missing unless explicitly asked.
 
 {passages}
 
@@ -117,17 +118,26 @@ Now answer the following:
 RESPONSE:"""
 
     # few-shot examples
-    few_shot_template_minimal: str = """Given one or more documents and a user query, generate a response to the query using less than {max_words} words that is grounded in the provided documents. If the passages do not contain the answer, say "{idk_phrase}".
+    few_shot_template_minimal: str = """Given one or more documents and a user query, generate a response to the query using less than {max_words} words that is grounded in the provided documents.
+
+If none of the question can be answered from the passages, say "{idk_phrase}".
+If only part of the question can be answered, answer only that part and do not speculate.
 
 EXAMPLE 1 (Answerable):
 PASSAGE 1: Doctor Strange was created by Steve Ditko and Stan Lee in 1963.
 User: Who created Doctor Strange?
 RESPONSE: Doctor Strange was created by artist Steve Ditko and writer Stan Lee in 1963.
 
-EXAMPLE 2 (Unanswerable):
-PASSAGE 1: The Cardinals play in Phoenix, Arizona.
-User: Where do the Cardinals play this week?
+EXAMPLE 2 (Partially Answerable):
+PASSAGE 1: Doctor Strange was created by Steve Ditko and Stan Lee in 1963.
+User: Who created Doctor Strange and when was the movie released?
+RESPONSE: Doctor Strange was created by Steve Ditko and Stan Lee in 1963.
+
+EXAMPLE 3 (Unanswerable):
+PASSAGE 1: The Arizona Cardinals play their home games in Phoenix, Arizona.
+User: Where do the Arizona Cardinals play this week?
 RESPONSE: {idk_phrase}
+
 
 {passages}
 {conversation}
@@ -169,7 +179,7 @@ RESPONSE:"""
     template: str = field(default="", init=False)
     
     def __post_init__(self):
-        self.template = self.few_shot_template_improve if self.use_few_shot else self.zero_shot_template
+        self.template = self.few_shot_template_minimal if self.use_few_shot else self.zero_shot_template
 
 
 @dataclass

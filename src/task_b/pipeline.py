@@ -2,6 +2,8 @@
 integrated data loading, generation, evaluation for Task B
 """
 
+from unittest import result
+from unittest import result
 from sympy import re
 from tqdm import tqdm
 from typing import Dict, List
@@ -135,6 +137,8 @@ class TaskBPipeline:
         results = []
         for i, (task, response) in enumerate(zip(tasks, responses)):
             result = task.copy()
+            if "answerability" not in result and "Answerability" in result:
+                result["answerability"] = result["Answerability"]
             result['predictions'] = [{'text': response}]
             results.append(result)
             
